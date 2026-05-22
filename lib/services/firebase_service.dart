@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../models/cart_model.dart';
 import '../models/category_model.dart';
 import '../models/order_model.dart';
 import '../models/product_model.dart';
@@ -42,6 +43,28 @@ class FirebaseService {
         await _db.collection(AppConstants.usersCollection).doc(uid).get();
     if (!doc.exists || doc.data() == null) return null;
     return UserModel.fromJson({...doc.data()!, 'id': uid});
+  }
+
+  // ── Cart (persisted on user document) ───────────────────────────────────
+
+  Future<List<CartItemModel>> loadCart(String userId) async {
+    final doc =
+        await _db.collection(AppConstants.usersCollection).doc(userId).get();
+    if (!doc.exists || doc.data() == null) return [];
+    final raw = doc.data()![AppConstants.userCartField];
+    if (raw is! List) return [];
+    return raw
+        .whereType<Map>()
+        .map((e) => CartItemModel.fromJson(Map<String, dynamic>.from(e)))
+        .where((item) => item.productId.isNotEmpty)
+        .toList();
+  }
+
+  Future<void> saveCart(String userId, List<CartItemModel> items) {
+    return _db.collection(AppConstants.usersCollection).doc(userId).set(
+          {AppConstants.userCartField: items.map((e) => e.toJson()).toList()},
+          SetOptions(merge: true),
+        );
   }
 
   // ── Orders ────────────────────────────────────────────────────────────────
